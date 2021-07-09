@@ -1,0 +1,26 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+pytest = "*"
+freezegun = "*"
+black = "*"
+flake8 = "*"
+
+[packages]
+
+[scripts]
+start = "python src/app.py"
+development = "./scripts/development.sh"
+staging = "./scripts/staging.sh"
+production = "./scripts/production.sh"
+test = "./scripts/test.sh"
+lambda = "sam local start-lambda -p 3123"
+
+[requires]
+python_version = "3.8"
+
+[pipenv]
+allow_prereleases = true

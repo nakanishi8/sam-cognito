@@ -1,0 +1,251 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  lambda-python3.8
+
+  Sample SAM Template for lambda-python3.8
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: TestingUsers
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Schema:
+        - AttributeDataType: String
+          Mutable: false
+          Name: email
+          Required: true
+        # - AttributeDataType: String
+        #   Mutable: false
+        #   Name: name
+        #   Required: true
+      UsernameAttributes:
+        - email
+      # UsernameConfiguration:
+      #   CaseSensitive: false
+      AutoVerifiedAttributes:
+        - email
+      EmailConfiguration:
+        EmailSendingAccount: DEVELOPER
+        From: shinji.nakanishi@lab.sompo.io
+        SourceArn: arn:aws:ses:us-east-1:603085981884:identity/shinji.nakanishi@lab.sompo.io
+      MfaConfiguration: 'ON'
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      # LambdaConfig:
+      #   PostConfirmation: arn:aws:lambda:ap-northeast-1:603085981884:function:myapp2482687fc482687fcPostConfirmation-dev
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      ExplicitAuthFlows:
+      - USER_PASSWORD_AUTH
+  UserPoolGroupAdmin:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      Precedence: 1
+      RoleArn: arn:aws:iam::603085981884:role/ap-northeast-1_npMuZsVDt-adminGroupRole
+      UserPoolId: !Ref UserPool
+  UserPoolGroupUser:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: user
+      Precedence: 2
+      RoleArn: arn:aws:iam::603085981884:role/ap-northeast-1_npMuZsVDt-userGroupRole
+      UserPoolId: !Ref UserPool
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      IdentityPoolName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - Users
+      CognitoIdentityProviders:
+      - ClientId:
+          Ref: UserPoolClient
+        ProviderName:
+          Fn::Join:
+          - ""
+          - - cognito-idp.
+            - Ref: "AWS::Region"
+            - .amazonaws.com/
+            - Ref: UserPool
+  UnauthenticatedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action:
+          - mobileanalytics:PutEvents
+          - cognito-sync:*
+          Resource:
+          - "*"
+  UnauthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action: "sts:AssumeRoleWithWebIdentity"
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Condition:
+            StringEquals:
+              "cognito-identity.amazonaws.com:aud":
+                Ref: IdentityPool
+            ForAnyValue:StringLike:
+              "cognito-identity.amazonaws.com:amr": unauthenticated
+      ManagedPolicyArns:
+      - Ref: UnauthenticatedPolicy
+  AuthenticatedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action:
+          - mobileanalytics:PutEvents
+          - cognito-sync:*
+          - cognito-identity:*
+          Resource:
+          - "*"
+  AuthenticatedRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action: "sts:AssumeRoleWithWebIdentity"
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Condition:
+            StringEquals:
+              "cognito-identity.amazonaws.com:aud":
+                Ref: IdentityPool
+            ForAnyValue:StringLike:
+              "cognito-identity.amazonaws.com:amr": authenticated
+      ManagedPolicyArns:
+      - Ref: AuthenticatedPolicy
+
+  HelloWorldPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action:
+          - execute-api:Invoke
+          Resource:
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/POST/books/*"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/POST/books"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/GET/books/*"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/GET/books"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/PUT/books/*"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/PUT/books"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/PATCH/books/*"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/PATCH/books"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/DELETE/books/*"
+          - "arn:aws:execute-api:ap-northeast-1:603085981884:rk6z30v7gj/dev/DELETE/books"
+  HelloWorldRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Effect: Allow
+          Action: "sts:AssumeRoleWithWebIdentity"
+          Principal:
+            Federated: cognito-identity.amazonaws.com
+          Condition:
+            StringEquals:
+              "cognito-identity.amazonaws.com:aud":
+                Ref: IdentityPool
+            ForAnyValue:StringLike:
+              "cognito-identity.amazonaws.com:amr": authenticated
+      ManagedPolicyArns:
+      - Ref: HelloWorldPolicy
+
+  # RoleAttachment1:
+  #   Type: AWS::Cognito::IdentityPoolRoleAttachment
+  #   Properties:
+  #     IdentityPoolId:
+  #       Ref: IdentityPool
+  #     Roles:
+  #       unauthenticated:
+  #         Fn::GetAtt:
+  #         - UnauthenticatedRole
+  #         - Arn
+  #       authenticated:
+  #         Fn::GetAtt:
+  #         - AuthenticatedRole
+  #         - Arn
+  # RoleAttachment2:
+  #   Type: AWS::Cognito::IdentityPoolRoleAttachment
+  #   Properties:
+  #     IdentityPoolId:
+  #       Ref: IdentityPool
+  #     Roles:
+  #       unauthenticated:
+  #         Fn::GetAtt:
+  #         - UnauthenticatedRole
+  #         - Arn
+  #       authenticated:
+  #         Fn::GetAtt:
+  #         - HelloWorldRole
+  #         - Arn
+
+  HelloWorldApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      Auth:
+        DefaultAuthorizer: AWS_IAM
+        AddDefaultAuthorizerToCorsPreflight: false
+#        DefaultAuthorizer: CognitoAuthorizer
+#        Authorizers:
+#          CognitoAuthorizer:
+#            UserPoolArn: !Sub arn:aws:cognito-idp:ap-northeast-1:${AWS::AccountId}:userpool/ap-northeast-1_DPAiNCc9l
+  HelloWorldFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Events:
+        HelloWorld:
+          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+          Properties:
+            Path: /hello
+            Method: get
+            RestApiId: !Ref HelloWorldApi
+
+Outputs:
+  # HelloWorldApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  HelloWorldApi:
+    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
+    Value: !Sub "https://${HelloWorldApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+  HelloWorldFunction:
+    Description: "Hello World Lambda Function ARN"
+    Value: !GetAtt HelloWorldFunction.Arn
+  HelloWorldFunctionIamRole:
+    Description: "Implicit IAM Role created for Hello World function"
+    Value: !GetAtt HelloWorldFunctionRole.Arn
